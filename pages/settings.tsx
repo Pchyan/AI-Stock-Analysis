@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 
 export default function Settings() {
@@ -6,6 +6,12 @@ export default function Settings() {
   const [status, setStatus] = useState<'idle'|'saving'|'success'|'fail'>('idle');
   const [error, setError] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+
+  // 資料庫匯出/匯入相關狀態
+  const [dbStatus, setDbStatus] = useState<'idle'|'exporting'|'importing'|'success'|'fail'>('idle');
+  const [dbError, setDbError] = useState('');
+  const [dbSuccess, setDbSuccess] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 簡單的加密函數
   const encryptApiKey = (key: string): string => {
@@ -60,6 +66,132 @@ export default function Settings() {
     }
   };
 
+  // 匯出資料庫
+  const exportDatabase = () => {
+    try {
+      setDbStatus('exporting');
+      setDbError('');
+      setDbSuccess('');
+
+      // 收集所有 localStorage 數據
+      const data = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          data[key] = localStorage.getItem(key);
+        }
+      }
+
+      // 創建一個包含時間戳的檔案名
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `stock-analysis-backup-${timestamp}.json`;
+
+      // 將數據轉換為 JSON 並創建下載連結
+      const jsonData = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      // 創建一個臨時的下載連結並觸發下載
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+
+      // 清理
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setDbStatus('success');
+        setDbSuccess('資料庫匯出成功！');
+        setTimeout(() => {
+          setDbStatus('idle');
+          setDbSuccess('');
+        }, 2000);
+      }, 100);
+    } catch (e) {
+      console.error('匯出資料庫失敗', e);
+      setDbStatus('fail');
+      setDbError(`匯出資料庫失敗: ${e.message}`);
+    }
+  };
+
+  // 觸發檔案選擇器
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // 匯入資料庫
+  const importDatabase = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setDbStatus('importing');
+    setDbError('');
+    setDbSuccess('');
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+
+        // 確認匯入
+        if (!confirm('匯入將會覆蓋現有的所有資料，確定要繼續嗎？')) {
+          setDbStatus('idle');
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+          return;
+        }
+
+        // 將數據寫入 localStorage
+        Object.keys(data).forEach(key => {
+          if (data[key] !== null) {
+            localStorage.setItem(key, data[key]);
+          }
+        });
+
+        setDbStatus('success');
+        setDbSuccess('資料庫匯入成功！請重新整理頁面以套用新資料。');
+
+        // 重置檔案輸入
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+
+        // 3 秒後重新整理頁面
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+      } catch (e) {
+        console.error('匯入資料庫失敗', e);
+        setDbStatus('fail');
+        setDbError(`匯入資料庫失敗: ${e.message}`);
+
+        // 重置檔案輸入
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+
+    reader.onerror = () => {
+      setDbStatus('fail');
+      setDbError('讀取檔案失敗');
+
+      // 重置檔案輸入
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
   return (
     <div className="container py-5">
       <div className="back-link mb-3">
@@ -72,117 +204,235 @@ export default function Settings() {
         </a>
       </div>
 
-      <div className="card" style={{ maxWidth: '600px', margin: '0 auto' }}>
-        <div className="card-header">
-          <h2 className="card-title">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            Google Gemini API KEY 設定
-          </h2>
-        </div>
+      <div className="settings-cards">
+        {/* API KEY 設定卡片 */}
+        <div className="card mb-4">
+          <div className="card-header">
+            <h2 className="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              Google Gemini API KEY 設定
+            </h2>
+          </div>
 
-        <div className="card-body">
-          <div className="mb-4">
-            <p>
-              請於下方輸入您的 Gemini API KEY。
-            </p>
-            <div className="bg-info p-3 rounded-md mb-3">
-              <h4 className="font-semibold mb-2">如何取得？</h4>
-              <ol className="ml-4 list-decimal">
-                <li className="mb-1">前往 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" className="text-primary font-medium">
-                  Google AI Studio - API Keys
-                </a></li>
-                <li className="mb-1">登入 Google 帳號，點選「Create API Key」</li>
-                <li>複製產生的 API Key，貼到下方欄位</li>
-              </ol>
+          <div className="card-body">
+            <div className="mb-4">
+              <p>
+                請於下方輸入您的 Gemini API KEY。
+              </p>
+              <div className="bg-info p-3 rounded-md mb-3">
+                <h4 className="font-semibold mb-2">如何取得？</h4>
+                <ol className="ml-4 list-decimal">
+                  <li className="mb-1">前往 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" className="text-primary font-medium">
+                    Google AI Studio - API Keys
+                  </a></li>
+                  <li className="mb-1">登入 Google 帳號，點選「Create API Key」</li>
+                  <li>複製產生的 API Key，貼到下方欄位</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="apiKey" className="d-block mb-2 font-medium">您的 Gemini API KEY</label>
+              <div className="api-key-input-container">
+                <input
+                  id="apiKey"
+                  type={showApiKey ? "text" : "password"}
+                  className="w-100 p-2 border rounded-md"
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                  placeholder="請輸入您的 Gemini API KEY"
+                  disabled={status === 'saving'}
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="toggle-visibility-btn"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  title={showApiKey ? "隱藏 API KEY" : "顯示 API KEY"}
+                >
+                  {showApiKey ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="d-flex align-items-center">
+              <button
+                className={`btn ${status === 'saving' ? 'btn-secondary' : 'btn-primary'}`}
+                onClick={validateAndSave}
+                disabled={status === 'saving'}
+              >
+                {status === 'saving' ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                    驗證中...
+                  </>
+                ) : '儲存並驗證'}
+              </button>
+
+              {status === 'success' && (
+                <div className="ml-3 text-success d-flex align-items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  驗證成功，已儲存！
+                </div>
+              )}
+
+              {status === 'fail' && (
+                <div className="ml-3 text-error d-flex align-items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  {error}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="mb-4">
-            <label htmlFor="apiKey" className="d-block mb-2 font-medium">您的 Gemini API KEY</label>
-            <div className="api-key-input-container">
-              <input
-                id="apiKey"
-                type={showApiKey ? "text" : "password"}
-                className="w-100 p-2 border rounded-md"
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                placeholder="請輸入您的 Gemini API KEY"
-                disabled={status === 'saving'}
-                autoComplete="off"
-              />
+          <div className="card-footer text-secondary">
+            <div className="d-flex align-items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              您的 API KEY 只會儲存在本機瀏覽器，不會上傳到伺服器。
+            </div>
+          </div>
+        </div>
+
+        {/* 資料庫匯出/匯入卡片 */}
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path>
+                <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon>
+              </svg>
+              資料庫管理
+            </h2>
+          </div>
+
+          <div className="card-body">
+            <div className="mb-4">
+              <p>
+                您可以匯出目前的資料庫以進行備份，或從備份檔案中匯入資料。
+              </p>
+              <div className="bg-info p-3 rounded-md mb-3">
+                <h4 className="font-semibold mb-2">注意事項</h4>
+                <ul className="ml-4 list-disc">
+                  <li className="mb-1">匯出的資料包含您的所有持股、交易記錄和設定</li>
+                  <li className="mb-1">匯入資料將會覆蓋目前的所有資料</li>
+                  <li>建議定期匯出資料以防資料遺失</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="d-flex flex-wrap gap-3">
               <button
-                type="button"
-                className="toggle-visibility-btn"
-                onClick={() => setShowApiKey(!showApiKey)}
-                title={showApiKey ? "隱藏 API KEY" : "顯示 API KEY"}
+                className={`btn ${dbStatus === 'exporting' ? 'btn-secondary' : 'btn-primary'}`}
+                onClick={exportDatabase}
+                disabled={dbStatus === 'exporting' || dbStatus === 'importing'}
               >
-                {showApiKey ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                  </svg>
+                {dbStatus === 'exporting' ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                    匯出中...
+                  </>
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    匯出資料庫
+                  </>
                 )}
               </button>
+
+              <button
+                className={`btn ${dbStatus === 'importing' ? 'btn-secondary' : 'btn-outline'}`}
+                onClick={triggerFileInput}
+                disabled={dbStatus === 'exporting' || dbStatus === 'importing'}
+              >
+                {dbStatus === 'importing' ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                    匯入中...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    匯入資料庫
+                  </>
+                )}
+              </button>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={importDatabase}
+                accept=".json"
+                style={{ display: 'none' }}
+              />
             </div>
-          </div>
 
-          <div className="d-flex align-items-center">
-            <button
-              className={`btn ${status === 'saving' ? 'btn-secondary' : 'btn-primary'}`}
-              onClick={validateAndSave}
-              disabled={status === 'saving'}
-            >
-              {status === 'saving' ? (
-                <>
-                  <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                  驗證中...
-                </>
-              ) : '儲存並驗證'}
-            </button>
-
-            {status === 'success' && (
-              <div className="ml-3 text-success d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-                驗證成功，已儲存！
-              </div>
-            )}
-
-            {status === 'fail' && (
-              <div className="ml-3 text-error d-flex align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="8" x2="12" y2="12"></line>
-                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                {error}
+            {(dbStatus === 'success' || dbStatus === 'fail') && (
+              <div className={`mt-3 ${dbStatus === 'success' ? 'text-success' : 'text-error'} d-flex align-items-center`}>
+                {dbStatus === 'success' ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                )}
+                {dbStatus === 'success' ? dbSuccess : dbError}
               </div>
             )}
           </div>
-        </div>
 
-        <div className="card-footer text-secondary">
-          <div className="d-flex align-items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-            </svg>
-            您的 API KEY 只會儲存在本機瀏覽器，不會上傳到伺服器。
+          <div className="card-footer text-secondary">
+            <div className="d-flex align-items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              所有資料僅儲存在您的瀏覽器中，建議定期匯出備份。
+            </div>
           </div>
         </div>
       </div>
 
       <style jsx>{`
+        .settings-cards {
+          max-width: 800px;
+          margin: 0 auto;
+        }
+
         .spinner-border {
           display: inline-block;
           width: 1rem;
@@ -199,6 +449,10 @@ export default function Settings() {
 
         .list-decimal {
           list-style-type: decimal;
+        }
+
+        .list-disc {
+          list-style-type: disc;
         }
 
         .api-key-input-container {
@@ -228,6 +482,14 @@ export default function Settings() {
         .toggle-visibility-btn:focus {
           outline: none;
           color: var(--color-primary);
+        }
+
+        .gap-3 {
+          gap: 0.75rem;
+        }
+
+        .mt-3 {
+          margin-top: 0.75rem;
         }
       `}</style>
     </div>
