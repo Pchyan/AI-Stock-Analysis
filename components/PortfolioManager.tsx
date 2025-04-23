@@ -79,11 +79,50 @@ export default function PortfolioManager() {
         fetchStockInfo();
       }, 500);
 
-      return () => clearTimeout(timer);
+      // 設定定期更新股價，每 5 分鐘更新一次
+      const priceUpdateTimer = setInterval(() => {
+        // 只更新股價，不更新其他資訊
+        const updatePrices = async () => {
+          try {
+            const currentPortfolio = portfolioRef.current;
+            let newCurrentPrice = {...currentPrice};
+            let hasChanges = false;
+
+            for (const stock of currentPortfolio) {
+              try {
+                const stockResponse = await fetch(`/api/stock?symbol=${stock.symbol}&timeframe=1d`);
+                const stockData = await stockResponse.json();
+
+                if (stockData && stockData.candles && stockData.candles.length > 0) {
+                  // 取得最新的收盤價
+                  const latestPrice = stockData.candles[stockData.candles.length - 1].c;
+                  newCurrentPrice[stock.symbol] = latestPrice;
+                  hasChanges = true;
+                }
+              } catch (error) {
+                console.error(`更新 ${stock.symbol} 的當前價格失敗:`, error);
+              }
+            }
+
+            if (hasChanges) {
+              setCurrentPrice(newCurrentPrice);
+            }
+          } catch (error) {
+            console.error('更新股價失敗:', error);
+          }
+        };
+
+        updatePrices();
+      }, 5 * 60 * 1000); // 5 分鐘
+
+      return () => {
+        clearTimeout(timer);
+        clearInterval(priceUpdateTimer);
+      };
     }
   }, [portfolio.length]); // 投資組合長度變化時重新獲取資訊
 
-  // 獲取股票資訊
+  // 獲取股票資訊和當前價格
   const fetchStockInfo = async () => {
     setLoading(true);
 
@@ -92,56 +131,90 @@ export default function PortfolioManager() {
       const currentPortfolio = portfolioRef.current;
       const updatedPortfolio = [...currentPortfolio];
       let hasChanges = false;
+      let newCurrentPrice = {...currentPrice};
 
       // 對每個股票獲取資訊
       for (let i = 0; i < updatedPortfolio.length; i++) {
         const stock = updatedPortfolio[i];
 
-        // 如果已經有名稱和除息日等資訊，則跳過
-        // 但如果名稱是空或是符號「-」，則仍然獲取資訊
-        if (stock.name && stock.name !== '-' && stock.name !== '' && stock.exDividendDate) continue;
+        // 獲取股票的當前價格
+        try {
+          const stockResponse = await fetch(`/api/stock?symbol=${stock.symbol}&timeframe=1d`);
+          const stockData = await stockResponse.json();
 
-        // 獲取股票資訊
-        const response = await fetch(`/api/stock-info?symbol=${stock.symbol}`);
-        const data = await response.json();
-
-        if (data) {
-          // 更新股票資訊
-          updatedPortfolio[i] = {
-            ...stock,
-            name: data.name || '-',
-            exDividendDate: data.exDividendDate || '-',
-            lastExDividendDate: data.lastExDividendDate || '-',
-            exRightDate: data.exRightDate || '-',
-            lastExRightDate: data.lastExRightDate || '-',
-            cashDividendPerShare: data.cashDividendPerShare || 0,
-            stockDividendPerShare: data.stockDividendPerShare || 0
-          };
-
-          // 計算殖利率
-          if (data.cashDividendPerShare && data.cashDividendPerShare > 0) {
-            // 現金殖利率 = 每股配息 / 成本 * 100%
-            const cashYield = (data.cashDividendPerShare / stock.cost) * 100;
-            updatedPortfolio[i].cashYield = parseFloat(cashYield.toFixed(2));
-
-            // 總殖利率 = (每股配息 + 每股配股 * 成本) / 成本 * 100%
-            const stockValue = (data.stockDividendPerShare || 0) * stock.cost;
-            const totalYield = ((data.cashDividendPerShare + stockValue) / stock.cost) * 100;
-            updatedPortfolio[i].totalYield = parseFloat(totalYield.toFixed(2));
-
-            // 持有成本的殖利率 = 總殖利率
-            updatedPortfolio[i].costYield = updatedPortfolio[i].totalYield;
-          } else {
-            // 確保殖利率欄位有預設值
-            updatedPortfolio[i].cashYield = 0;
-            updatedPortfolio[i].totalYield = 0;
-            updatedPortfolio[i].costYield = 0;
+          if (stockData && stockData.candles && stockData.candles.length > 0) {
+            // 取得最新的收盤價
+            const latestPrice = stockData.candles[stockData.candles.length - 1].c;
+            newCurrentPrice[stock.symbol] = latestPrice;
+            hasChanges = true;
           }
-
-          // 計算總值
-          updatedPortfolio[i].totalValue = stock.shares * stock.cost;
-          hasChanges = true;
+        } catch (error) {
+          console.error(`獲取 ${stock.symbol} 的當前價格失敗:`, error);
         }
+
+        // 如果已經有名稱和除息日等資訊，則跳過這部分
+        // 但如果名稱是空或是符號「-」，則仍然獲取資訊
+        if (!(stock.name && stock.name !== '-' && stock.name !== '' && stock.exDividendDate)) {
+          try {
+            // 獲取股票資訊
+            const response = await fetch(`/api/stock-info?symbol=${stock.symbol}`);
+            const data = await response.json();
+
+            if (data) {
+              // 更新股票資訊
+              updatedPortfolio[i] = {
+                ...stock,
+                name: data.name || '-',
+                exDividendDate: data.exDividendDate || '-',
+                lastExDividendDate: data.lastExDividendDate || '-',
+                exRightDate: data.exRightDate || '-',
+                lastExRightDate: data.lastExRightDate || '-',
+                cashDividendPerShare: data.cashDividendPerShare || 0,
+                stockDividendPerShare: data.stockDividendPerShare || 0
+              };
+
+              // 計算殖利率
+              if (data.cashDividendPerShare && data.cashDividendPerShare > 0) {
+                // 現金殖利率 = 每股配息 / 成本 * 100%
+                const cashYield = (data.cashDividendPerShare / stock.cost) * 100;
+                updatedPortfolio[i].cashYield = parseFloat(cashYield.toFixed(2));
+
+                // 取得股票的當前市場價格
+                const currentStockPrice = currentPrice[stock.symbol] || stock.cost;
+
+                // 現金殖利率 = 每股配息 / 成本 * 100%
+                const cashYieldValue = (data.cashDividendPerShare / stock.cost) * 100;
+
+                // 股票殖利率 = 每股配股 * 當前市場價格 / 成本 * 100%
+                const stockYieldValue = ((data.stockDividendPerShare || 0) * currentStockPrice / stock.cost) * 100;
+
+                // 總殖利率 = 現金殖利率 + 股票殖利率
+                const totalYield = cashYieldValue + stockYieldValue;
+                updatedPortfolio[i].totalYield = parseFloat(totalYield.toFixed(2));
+
+                // 持有成本的殖利率 = 總殖利率
+                updatedPortfolio[i].costYield = updatedPortfolio[i].totalYield;
+              } else {
+                // 確保殖利率欄位有預設值
+                updatedPortfolio[i].cashYield = 0;
+                updatedPortfolio[i].totalYield = 0;
+                updatedPortfolio[i].costYield = 0;
+              }
+
+              hasChanges = true;
+            }
+          } catch (error) {
+            console.error(`獲取 ${stock.symbol} 的資訊失敗:`, error);
+          }
+        }
+
+        // 計算總值 (成本總值)
+        updatedPortfolio[i].totalValue = stock.shares * stock.cost;
+      }
+
+      // 更新當前價格狀態
+      if (Object.keys(newCurrentPrice).length > 0) {
+        setCurrentPrice(newCurrentPrice);
       }
 
       // 只有在有變更時才更新狀態
@@ -192,9 +265,17 @@ export default function PortfolioManager() {
         const cashYield = (data.cashDividendPerShare / Number(cost)) * 100;
         newStock.cashYield = parseFloat(cashYield.toFixed(2));
 
-        // 總殖利率 = (每股配息 + 每股配股 * 成本) / 成本 * 100%
-        const stockValue = (data.stockDividendPerShare || 0) * Number(cost);
-        const totalYield = ((data.cashDividendPerShare + stockValue) / Number(cost)) * 100;
+        // 取得股票的當前市場價格
+        const currentStockPrice = currentPrice[symbol.trim().toUpperCase()] || Number(cost);
+
+        // 現金殖利率 = 每股配息 / 成本 * 100%
+        const cashYieldValue = (data.cashDividendPerShare / Number(cost)) * 100;
+
+        // 股票殖利率 = 每股配股 * 當前市場價格 / 成本 * 100%
+        const stockYieldValue = ((data.stockDividendPerShare || 0) * currentStockPrice / Number(cost)) * 100;
+
+        // 總殖利率 = 現金殖利率 + 股票殖利率
+        const totalYield = cashYieldValue + stockYieldValue;
         newStock.totalYield = parseFloat(totalYield.toFixed(2));
 
         // 持有成本的殖利率 = 總殖利率
@@ -277,9 +358,17 @@ export default function PortfolioManager() {
             const cashYield = (stock.cashDividendPerShare / parseFloat(editStock.cost)) * 100;
             updatedStock.cashYield = parseFloat(cashYield.toFixed(2));
 
-            // 總殖利率 = (每股配息 + 每股配股 * 成本) / 成本 * 100%
-            const stockValue = (stock.stockDividendPerShare || 0) * parseFloat(editStock.cost);
-            const totalYield = ((stock.cashDividendPerShare + stockValue) / parseFloat(editStock.cost)) * 100;
+            // 取得股票的當前市場價格
+            const currentStockPrice = currentPrice[stock.symbol] || parseFloat(editStock.cost);
+
+            // 現金殖利率 = 每股配息 / 成本 * 100%
+            const cashYieldValue = (stock.cashDividendPerShare / parseFloat(editStock.cost)) * 100;
+
+            // 股票殖利率 = 每股配股 * 當前市場價格 / 成本 * 100%
+            const stockYieldValue = ((stock.stockDividendPerShare || 0) * currentStockPrice / parseFloat(editStock.cost)) * 100;
+
+            // 總殖利率 = 現金殖利率 + 股票殖利率
+            const totalYield = cashYieldValue + stockYieldValue;
             updatedStock.totalYield = parseFloat(totalYield.toFixed(2));
 
             // 持有成本的殖利率 = 總殖利率
@@ -353,6 +442,18 @@ export default function PortfolioManager() {
         return sortConfig.direction === 'ascending' ? valueA - valueB : valueB - valueA;
       }
 
+      if (sortConfig.key === 'currentPrice') {
+        const priceA = currentPrice[a.symbol] || 0;
+        const priceB = currentPrice[b.symbol] || 0;
+        return sortConfig.direction === 'ascending' ? priceA - priceB : priceB - priceA;
+      }
+
+      if (sortConfig.key === 'currentTotalValue') {
+        const valueA = currentPrice[a.symbol] ? a.shares * currentPrice[a.symbol] : 0;
+        const valueB = currentPrice[b.symbol] ? b.shares * currentPrice[b.symbol] : 0;
+        return sortConfig.direction === 'ascending' ? valueA - valueB : valueB - valueA;
+      }
+
       if (sortConfig.key === 'exDividendDate') {
         const dateA = a.exDividendDate || '';
         const dateB = b.exDividendDate || '';
@@ -364,6 +465,12 @@ export default function PortfolioManager() {
       if (sortConfig.key === 'cashDividendPerShare') {
         const dividendA = a.cashDividendPerShare || 0;
         const dividendB = b.cashDividendPerShare || 0;
+        return sortConfig.direction === 'ascending' ? dividendA - dividendB : dividendB - dividendA;
+      }
+
+      if (sortConfig.key === 'stockDividendPerShare') {
+        const dividendA = a.stockDividendPerShare || 0;
+        const dividendB = b.stockDividendPerShare || 0;
         return sortConfig.direction === 'ascending' ? dividendA - dividendB : dividendB - dividendA;
       }
 
@@ -391,13 +498,32 @@ export default function PortfolioManager() {
     return sortConfig.key === name ? `sortable ${sortConfig.direction}` : 'sortable';
   };
 
+  // 計算目前總市值
   const calculateTotalValue = () => {
     // 使用 portfolioRef.current 確保使用最新的投資組合數據
     return portfolioRef.current.reduce((total, stock) => {
-      // 如果有 totalValue 屬性，則使用它，否則計算
-      const value = stock.totalValue !== undefined ? stock.totalValue : stock.shares * stock.cost;
+      // 計算目前總市值：股數 * 目前股價
+      const value = currentPrice[stock.symbol] ? stock.shares * currentPrice[stock.symbol] : 0;
       return total + value;
     }, 0).toFixed(2);
+  };
+
+  // 計算總成本
+  const calculateTotalCost = () => {
+    // 使用 portfolioRef.current 確保使用最新的投資組合數據
+    return portfolioRef.current.reduce((total, stock) => {
+      // 計算總成本：股數 * 成本
+      const cost = stock.totalValue !== undefined ? stock.totalValue : stock.shares * stock.cost;
+      return total + cost;
+    }, 0).toFixed(2);
+  };
+
+  // 計算損益
+  const calculateProfit = () => {
+    const totalValue = parseFloat(calculateTotalValue());
+    const totalCost = parseFloat(calculateTotalCost());
+    const profit = totalValue - totalCost;
+    return profit.toFixed(2);
   };
 
   return (
@@ -443,7 +569,17 @@ export default function PortfolioManager() {
               )}
             </h3>
             <div className="portfolio-summary">
-              總資產價值: <span className="font-bold">${calculateTotalValue()}</span>
+              <div className="summary-item">
+                總成本: <span className="font-bold">${calculateTotalCost()}</span>
+              </div>
+              <div className="summary-item">
+                損益: <span className={`font-bold ${parseFloat(calculateProfit()) >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                  ${parseFloat(calculateProfit()) >= 0 ? '+' : ''}{calculateProfit()}
+                </span>
+              </div>
+              <div className="summary-item">
+                目前總市值: <span className="font-bold">${calculateTotalValue()}</span>
+              </div>
             </div>
           </div>
 
@@ -537,7 +673,15 @@ export default function PortfolioManager() {
                     <span className="sort-indicator"></span>
                   </th>
                   <th className={getClassNamesFor('totalValue')} onClick={() => requestSort('totalValue')}>
-                    總值
+                    成本總值
+                    <span className="sort-indicator"></span>
+                  </th>
+                  <th className={getClassNamesFor('currentPrice')} onClick={() => requestSort('currentPrice')}>
+                    目前股價
+                    <span className="sort-indicator"></span>
+                  </th>
+                  <th className={getClassNamesFor('currentTotalValue')} onClick={() => requestSort('currentTotalValue')}>
+                    目前總市值
                     <span className="sort-indicator"></span>
                   </th>
                   <th className={getClassNamesFor('exDividendDate')} onClick={() => requestSort('exDividendDate')}>
@@ -546,6 +690,10 @@ export default function PortfolioManager() {
                   </th>
                   <th className={getClassNamesFor('cashDividendPerShare')} onClick={() => requestSort('cashDividendPerShare')}>
                     每股配息
+                    <span className="sort-indicator"></span>
+                  </th>
+                  <th className={getClassNamesFor('stockDividendPerShare')} onClick={() => requestSort('stockDividendPerShare')}>
+                    每股配股
                     <span className="sort-indicator"></span>
                   </th>
                   <th className={getClassNamesFor('cashYield')} onClick={() => requestSort('cashYield')}>
@@ -588,8 +736,13 @@ export default function PortfolioManager() {
                       ) : stock.cost}
                     </td>
                     <td className="stock-value">${stock.totalValue ? stock.totalValue.toFixed(2) : (stock.shares * stock.cost).toFixed(2)}</td>
+                    <td className="stock-price">{currentPrice[stock.symbol] ? `$${currentPrice[stock.symbol].toFixed(2)}` : '-'}</td>
+                    <td className="stock-value">
+                      {currentPrice[stock.symbol] ? `$${(stock.shares * currentPrice[stock.symbol]).toFixed(2)}` : '-'}
+                    </td>
                     <td>{stock.exDividendDate || '-'}</td>
                     <td>{stock.cashDividendPerShare || '-'}</td>
+                    <td>{stock.stockDividendPerShare || '-'}</td>
                     <td className="yield-value">{stock.cashYield ? `${stock.cashYield}%` : '-'}</td>
                     <td className="yield-value">{stock.totalYield ? `${stock.totalYield}%` : '-'}</td>
                     <td>
@@ -698,8 +851,23 @@ export default function PortfolioManager() {
         }
 
         .portfolio-summary {
+          display: flex;
+          gap: var(--space-md);
           font-size: var(--font-size-md);
           color: var(--color-text-secondary);
+        }
+
+        .summary-item {
+          display: flex;
+          align-items: center;
+        }
+
+        .profit-positive {
+          color: var(--color-success);
+        }
+
+        .profit-negative {
+          color: var(--color-error);
         }
 
         .form-row {
@@ -837,6 +1005,26 @@ export default function PortfolioManager() {
           .form-row {
             grid-template-columns: repeat(2, 1fr);
           }
+
+          .portfolio-summary {
+            flex-direction: column;
+            gap: var(--space-xs);
+            align-items: flex-end;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .portfolio-summary {
+            margin-top: var(--space-sm);
+            flex-direction: row;
+            width: 100%;
+            justify-content: space-between;
+          }
         }
 
         @media (max-width: 576px) {
@@ -846,6 +1034,11 @@ export default function PortfolioManager() {
 
           .table-responsive {
             overflow-x: auto;
+          }
+
+          .portfolio-summary {
+            flex-direction: column;
+            align-items: flex-start;
           }
         }
 

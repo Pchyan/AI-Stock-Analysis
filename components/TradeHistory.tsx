@@ -583,10 +583,11 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
     const parts = dateStr.split(/[\/\-]/);
     if (parts.length === 3) {
       const year = parseInt(parts[0]);
-      const month = parseInt(parts[1]) - 1; // 月份從 0 開始
+      const month = parseInt(parts[1]);
       const day = parseInt(parts[2]);
-      const date = new Date(year, month, day);
-      return date.toISOString().split('T')[0];
+
+      // 使用 YYYY-MM-DD 格式創建日期字符串，避免時區問題
+      return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     }
     return new Date().toISOString().split('T')[0]; // 預設為今天
   };
