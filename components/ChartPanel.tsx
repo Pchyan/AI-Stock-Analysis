@@ -95,7 +95,10 @@ export default function ChartPanel({ data, onTimeframeChange }) {
     const rsiValues = calculateRSI(closePrices);
 
     // 根據選擇的圖表類型設置數據
-    let chartData = {};
+    let chartData = {
+      labels: [],
+      datasets: []
+    };
     let chartOptions = {};
 
     // 根據股票判斷地區
