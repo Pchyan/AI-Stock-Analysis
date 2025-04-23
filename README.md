@@ -1,6 +1,16 @@
-# AI Stock Analysis Web App
+# AI 股票分析應用
 
-## 執行步驟
+這是一個使用 Next.js 開發的股票分析應用程式，提供股票投資組合管理、交易記錄和分析功能。
+
+## 功能
+
+- 持股管理
+- 交易記錄
+- 股票分析
+- 股息追蹤
+- 即時股價更新
+
+## 本地開發
 
 1. **安裝依賴**
 
@@ -10,21 +20,66 @@
 npm install
 ```
 
-2. **啟動開發伺服器**
+2. **設定環境變數**
+
+創建 `.env.local` 檔案並設定環境變數：
+
+```
+ALPHA_VANTAGE_KEY=您的API金鑰
+```
+
+3. **啟動開發伺服器**
 
 ```
 npm run dev
 ```
 
-3. **開啟瀏覽器**
+4. **開啟瀏覽器**
 
 預設網址：http://localhost:3000
 
-4. **首次使用**
+5. **首次使用**
 - 請點選右上角「設定」頁，輸入並驗證您的 Google Gemini API KEY
 - 取得方式：
   - 前往 [Google AI Studio - API Keys](https://aistudio.google.com/app/apikey)
   - 建立 API KEY 並複製貼上
+
+## 部署到 Vercel
+
+### 自動部署（推薦）
+
+1. 在 GitHub 上創建一個新的儲存庫並推送您的代碼
+2. 在 [Vercel](https://vercel.com) 上註冊並連接您的 GitHub 帳戶
+3. 導入您的儲存庫
+4. 在部署設定中，添加環境變數：
+   - `ALPHA_VANTAGE_KEY`: 您的 Alpha Vantage API 金鑰
+5. 點擊部署
+
+### 手動部署
+
+1. 安裝 Vercel CLI：
+
+```bash
+npm install -g vercel
+```
+
+2. 登入 Vercel：
+
+```bash
+vercel login
+```
+
+3. 部署應用程式：
+
+```bash
+vercel
+```
+
+4. 按照提示設定環境變數
+
+## 環境變數
+
+- `ALPHA_VANTAGE_KEY`: Alpha Vantage API 金鑰，用於獲取股票數據
 
 ---
 
