@@ -526,6 +526,30 @@ export default function PortfolioManager() {
     return profit.toFixed(2);
   };
 
+  // 計算總損益（包含配息和配股）
+  const calculateTotalProfit = () => {
+    const totalValue = parseFloat(calculateTotalValue());
+    const totalCost = parseFloat(calculateTotalCost());
+    const basicProfit = totalValue - totalCost;
+
+    // 計算總配息
+    const totalDividends = portfolioRef.current.reduce((total, stock) => {
+      const cashDividend = stock.cashDividendPerShare ? stock.cashDividendPerShare * stock.shares : 0;
+      return total + cashDividend;
+    }, 0);
+
+    // 計算配股價值（使用目前市價）
+    const totalStockDividendValue = portfolioRef.current.reduce((total, stock) => {
+      if (!stock.stockDividendPerShare) return total;
+      const stockPrice = currentPrice[stock.symbol] || stock.cost;
+      const stockDividendValue = stock.stockDividendPerShare * stock.shares * stockPrice;
+      return total + stockDividendValue;
+    }, 0);
+
+    const totalProfit = basicProfit + totalDividends + totalStockDividendValue;
+    return totalProfit.toFixed(2);
+  };
+
   return (
     <div className="portfolio-container">
       <div className="tabs-container mb-4">
@@ -575,6 +599,12 @@ export default function PortfolioManager() {
               <div className="summary-item">
                 損益: <span className={`font-bold ${parseFloat(calculateProfit()) >= 0 ? 'profit-positive' : 'profit-negative'}`}>
                   ${parseFloat(calculateProfit()) >= 0 ? '+' : ''}{calculateProfit()}
+                  <span
+                    className="total-profit-tooltip"
+                    title="損益+總配息+配股乘以市價的總額"
+                  >
+                    ({parseFloat(calculateTotalProfit()) >= 0 ? '+' : ''}{calculateTotalProfit()})
+                  </span>
                 </span>
               </div>
               <div className="summary-item">
@@ -868,6 +898,18 @@ export default function PortfolioManager() {
 
         .profit-negative {
           color: var(--color-error);
+        }
+
+        .total-profit-tooltip {
+          font-size: var(--font-size-sm);
+          margin-left: var(--space-xxs);
+          cursor: help;
+          opacity: 0.8;
+        }
+
+        .total-profit-tooltip:hover {
+          opacity: 1;
+          text-decoration: underline dotted;
         }
 
         .form-row {
