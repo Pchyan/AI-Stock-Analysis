@@ -47,7 +47,7 @@ function simulateBacktest(
       winRate = 45 + Math.random() * 15; // 45-60%
       trades = 15 + Math.floor(Math.random() * 20); // 15-35
       break;
-    
+
     case 'rsi':
       // RSI策略
       annualReturn = 6 + Math.random() * 10; // 6-16%
@@ -57,7 +57,7 @@ function simulateBacktest(
       winRate = 40 + Math.random() * 20; // 40-60%
       trades = 25 + Math.floor(Math.random() * 30); // 25-55
       break;
-    
+
     case 'breakout':
       // 突破策略
       annualReturn = 10 + Math.random() * 15; // 10-25%
@@ -67,7 +67,7 @@ function simulateBacktest(
       winRate = 35 + Math.random() * 15; // 35-50%
       trades = 10 + Math.floor(Math.random() * 15); // 10-25
       break;
-    
+
     case 'value':
       // 價值投資策略
       annualReturn = 7 + Math.random() * 8; // 7-15%
@@ -77,7 +77,7 @@ function simulateBacktest(
       winRate = 55 + Math.random() * 20; // 55-75%
       trades = 5 + Math.floor(Math.random() * 8); // 5-13
       break;
-    
+
     default:
       annualReturn = 5 + Math.random() * 10; // 5-15%
       totalReturn = annualReturn * getPeriodYears(period);
@@ -90,43 +90,43 @@ function simulateBacktest(
   // 生成權益曲線
   const dataPoints = getPeriodDataPoints(period);
   let currentEquity = initialCapital;
-  
+
   for (let i = 0; i < dataPoints; i++) {
     // 模擬權益曲線，加入一些隨機波動
     const monthlyReturn = (annualReturn / 12) / 100;
     const randomFactor = 1 + (Math.random() * 0.02 - 0.01); // -1% to +1% 隨機波動
-    
+
     currentEquity = currentEquity * (1 + monthlyReturn * randomFactor);
-    
+
     // 模擬最大回撤
     if (Math.random() < 0.1) { // 10% 機率發生回撤
       const drawdownFactor = 1 - (Math.random() * maxDrawdown / 100);
       currentEquity = currentEquity * drawdownFactor;
     }
-    
+
     equity.push(Math.round(currentEquity));
   }
 
   // 生成交易記錄
   const dates = generateDates(period);
   const prices = generatePrices(symbol, dates.length);
-  
+
   for (let i = 0; i < trades; i++) {
     const dateIndex = Math.floor(Math.random() * dates.length);
     const date = dates[dateIndex];
     const price = prices[dateIndex];
     const shares = Math.floor(Math.random() * 100) + 10; // 10-110股
-    
+
     // 隨機生成買入或賣出
     const type = Math.random() > 0.5 ? 'buy' : 'sell';
-    
+
     // 如果是賣出，計算利潤
     let profit = undefined;
     if (type === 'sell' && i > 0) {
       const buyPrice = trades_data.find(t => t.type === 'buy')?.price || price * 0.9;
       profit = (price - buyPrice) * shares;
     }
-    
+
     trades_data.push({
       date,
       type,
@@ -135,7 +135,7 @@ function simulateBacktest(
       profit
     });
   }
-  
+
   // 按日期排序交易記錄
   trades_data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -180,13 +180,13 @@ function generateDates(period: string): string[] {
   const dates: string[] = [];
   const endDate = new Date();
   const dataPoints = getPeriodDataPoints(period);
-  
+
   for (let i = 0; i < dataPoints; i++) {
     const date = new Date();
     date.setDate(endDate.getDate() - (dataPoints - i));
     dates.push(date.toISOString().split('T')[0]);
   }
-  
+
   return dates;
 }
 
@@ -194,21 +194,21 @@ function generateDates(period: string): string[] {
 function generatePrices(symbol: string, length: number): number[] {
   const prices: number[] = [];
   let basePrice = 100; // 基礎價格
-  
+
   // 根據股票代碼設定不同的基礎價格
   if (symbol.includes('AAPL')) basePrice = 150;
   else if (symbol.includes('MSFT')) basePrice = 300;
   else if (symbol.includes('GOOGL')) basePrice = 2500;
   else if (symbol.includes('AMZN')) basePrice = 3000;
   else if (symbol.includes('2330')) basePrice = 500;
-  
+
   for (let i = 0; i < length; i++) {
     // 添加一些隨機波動
     const randomChange = (Math.random() - 0.48) * 2; // 稍微偏向上漲
     basePrice = basePrice * (1 + randomChange / 100);
     prices.push(Math.round(basePrice * 100) / 100);
   }
-  
+
   return prices;
 }
 
@@ -218,33 +218,77 @@ export default async function handler(
 ) {
   // 只接受 GET 請求
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: '只支援 GET 請求' });
+    return res.status(405).json({
+      error: '只支援 GET 請求',
+      annualReturn: '0%',
+      totalReturn: '0%',
+      maxDrawdown: '0%',
+      sharpeRatio: '0',
+      winRate: '0%',
+      trades: 0,
+      equity: []
+    });
   }
 
   const { symbol, strategy, period } = req.query;
 
   if (!symbol || typeof symbol !== 'string') {
-    return res.status(400).json({ error: '請提供有效的股票代碼' });
+    return res.status(400).json({
+      error: '請提供有效的股票代碼',
+      annualReturn: '0%',
+      totalReturn: '0%',
+      maxDrawdown: '0%',
+      sharpeRatio: '0',
+      winRate: '0%',
+      trades: 0,
+      equity: []
+    });
   }
 
   if (!strategy || typeof strategy !== 'string') {
-    return res.status(400).json({ error: '請提供有效的策略' });
+    return res.status(400).json({
+      error: '請提供有效的策略',
+      annualReturn: '0%',
+      totalReturn: '0%',
+      maxDrawdown: '0%',
+      sharpeRatio: '0',
+      winRate: '0%',
+      trades: 0,
+      equity: []
+    });
   }
 
   if (!period || typeof period !== 'string') {
-    return res.status(400).json({ error: '請提供有效的時間週期' });
+    return res.status(400).json({
+      error: '請提供有效的時間週期',
+      annualReturn: '0%',
+      totalReturn: '0%',
+      maxDrawdown: '0%',
+      sharpeRatio: '0',
+      winRate: '0%',
+      trades: 0,
+      equity: []
+    });
   }
 
   try {
     // 模擬回測計算
     const result = simulateBacktest(symbol, strategy, period);
-    
-    // 添加延遲模擬計算時間
-    setTimeout(() => {
-      res.status(200).json(result);
-    }, 1000);
+
+    // 直接返回結果，不使用 setTimeout
+    // 在 Vercel 等無伺服器環境中，setTimeout 可能會導致問題
+    res.status(200).json(result);
   } catch (error) {
     console.error('回測計算失敗:', error);
-    res.status(500).json({ error: '回測計算失敗，請稍後再試' });
+    res.status(500).json({
+      error: '回測計算失敗，請稍後再試',
+      annualReturn: '0%',
+      totalReturn: '0%',
+      maxDrawdown: '0%',
+      sharpeRatio: '0',
+      winRate: '0%',
+      trades: 0,
+      equity: []
+    });
   }
 }
