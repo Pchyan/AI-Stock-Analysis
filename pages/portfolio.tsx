@@ -12,18 +12,7 @@ export default function PortfolioPage() {
         <meta name="description" content="管理您的投資組合，追蹤您的持股表現" />
       </Head>
 
-      <NavBar />
-
       <div className="container py-4">
-        <div className="back-link mb-3">
-          <Link href="/" className="d-flex align-items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-              <line x1="19" y1="12" x2="5" y2="12"></line>
-              <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-            返回首頁
-          </Link>
-        </div>
 
         <div className="row justify-content-center">
           <div className="col-12 col-lg-10">

@@ -230,7 +230,6 @@ export default function Home() {
       </Head>
 
       <main>
-        <NavBar />
 
         {portfolio.length === 0 ? (
           <div className="container py-5 text-center">

@@ -193,16 +193,8 @@ export default function Settings() {
   };
 
   return (
-    <div className="container py-5">
-      <div className="back-link mb-3">
-        <a href="/" className="d-flex align-items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-          返回首頁
-        </a>
-      </div>
+    <div className="py-5">
+      {/* 移除返回首頁連結，確保與其他頁面一致 */}
 
       <div className="settings-cards">
         {/* API KEY 設定卡片 */}
