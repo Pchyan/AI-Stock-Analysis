@@ -180,10 +180,16 @@ class StorageBridge {
       for (let i = 0; i < this.fallbackStorage.length; i++) {
         const key = this.fallbackStorage.key(i);
         if (key) {
-          const value = this.fallbackStorage.getItem(key);
-          if (value !== null) {
-            console.log(`同步 localStorage -> Firebase: ${key}`);
-            storageData[key] = value;
+          // 檢查鍵名是否符合 Firebase 的規則
+          // Firebase 鍵名不能包含 '.', '#', '$', '/', '[', ']', ':'
+          if (!/[.#$/[\]:]/.test(key)) {
+            const value = this.fallbackStorage.getItem(key);
+            if (value !== null) {
+              console.log(`同步 localStorage -> Firebase: ${key}`);
+              storageData[key] = value;
+            }
+          } else {
+            console.log(`跳過不符合 Firebase 鍵名規則的項目: ${key}`);
           }
         }
       }

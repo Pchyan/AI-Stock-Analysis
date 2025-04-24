@@ -198,9 +198,14 @@ export default function QRCodeScanner() {
       if (data.storage) {
         console.log('開始同步資料到 localStorage...');
         Object.entries(data.storage).forEach(([key, value]) => {
-          if (value !== null && typeof value === 'string') {
-            console.log(`同步到 localStorage: ${key}`);
-            localStorage.setItem(key, value);
+          // 檢查鍵名是否符合 Firebase 的規則
+          if (!/[.#$/[\]:]/.test(key)) {
+            if (value !== null && typeof value === 'string') {
+              console.log(`同步到 localStorage: ${key}`);
+              localStorage.setItem(key, value);
+            }
+          } else {
+            console.log(`跳過不符合 Firebase 鍵名規則的項目: ${key}`);
           }
         });
         console.log('同步到 localStorage 完成');
