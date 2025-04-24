@@ -2,9 +2,7 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js",
-  "/api/journal": "pages/api/journal.js",
   "/settings": "pages/settings.js",
-  "/api/stock": "pages/api/stock.js",
-  "/portfolio": "pages/portfolio.js"
+  "/portfolio": "pages/portfolio.js",
+  "/": "pages/index.js"
 }

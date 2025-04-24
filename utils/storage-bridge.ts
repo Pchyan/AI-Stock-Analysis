@@ -126,8 +126,18 @@ class StorageBridge {
         const firebaseData = await getData<Record<string, any>>('storage');
         if (firebaseData) {
           const firebaseKeys = Object.keys(firebaseData);
-          // 合併並去重
-          return [...new Set([...localKeys, ...firebaseKeys])];
+          // 合併並去重（使用更兼容的方式）
+          const mergedKeys = localKeys.concat(firebaseKeys);
+          const uniqueKeys: string[] = [];
+
+          // 手動去重
+          mergedKeys.forEach(key => {
+            if (uniqueKeys.indexOf(key) === -1) {
+              uniqueKeys.push(key);
+            }
+          });
+
+          return uniqueKeys;
         }
       } catch (error) {
         console.error('獲取 Firebase 存儲鍵失敗:', error);
