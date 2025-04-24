@@ -1,32 +1,36 @@
 import React from 'react';
 
 interface Stock {
-  id?: string;
   symbol: string;
-  name?: string;
+  name: string;
   shares: number;
   cost: number;
-  totalValue?: number;
-  exDividendDate?: string;
-  cashDividendPerShare?: number;
-  stockDividendPerShare?: number;
-  cashYield?: number;
-  totalYield?: number;
+  id?: number;
+  exDividendDate?: string; // 除息日
+  lastExDividendDate?: string; // 上次除息日
+  exRightDate?: string; // 除權日
+  lastExRightDate?: string; // 上次除權日
+  cashDividendPerShare?: number; // 每股配息
+  stockDividendPerShare?: number; // 每股配股
+  cashYield?: number; // 現金殖利率(%)
+  totalYield?: number; // 現金+配股殖利率(%)
+  costYield?: number; // 持有成本的現金+股票殖利率(%)
+  totalValue?: number; // 持有的總值
 }
 
 interface ResponsiveStockTableProps {
   stocks: Stock[];
   currentPrice: Record<string, number>;
-  editingId: string | null;
+  editingId: number | null;
   editStock: {
     shares: string;
     cost: string;
   };
   setEditStock: (stock: { shares: string; cost: string }) => void;
   startEditing: (stock: Stock) => void;
-  saveEdit: (id: string) => void;
+  saveEdit: (id: number) => void;
   cancelEdit: () => void;
-  removeStock: (id: string) => void;
+  removeStock: (id: number) => void;
   getClassNamesFor: (key: string) => string;
   requestSort: (key: string) => void;
 }
@@ -254,10 +258,10 @@ export default function ResponsiveStockTable({
                 )}
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
-                <span className="text-base-content/70">股數:</span> 
+                <span className="text-base-content/70">股數:</span>
                 {editingId === stock.id ? (
                   <input
                     type="number"
@@ -271,7 +275,7 @@ export default function ResponsiveStockTable({
                 )}
               </div>
               <div>
-                <span className="text-base-content/70">成本:</span> 
+                <span className="text-base-content/70">成本:</span>
                 {editingId === stock.id ? (
                   <input
                     type="number"
@@ -286,35 +290,35 @@ export default function ResponsiveStockTable({
                 )}
               </div>
               <div>
-                <span className="text-base-content/70">成本總值:</span> 
+                <span className="text-base-content/70">成本總值:</span>
                 <span className="font-medium ml-1">${stock.totalValue ? stock.totalValue.toFixed(2) : (stock.shares * stock.cost).toFixed(2)}</span>
               </div>
               <div>
-                <span className="text-base-content/70">目前股價:</span> 
+                <span className="text-base-content/70">目前股價:</span>
                 <span className="font-medium ml-1">{currentPrice[stock.symbol] ? `$${currentPrice[stock.symbol].toFixed(2)}` : '-'}</span>
               </div>
               <div>
-                <span className="text-base-content/70">目前總市值:</span> 
+                <span className="text-base-content/70">目前總市值:</span>
                 <span className="font-medium ml-1">{currentPrice[stock.symbol] ? `$${(stock.shares * currentPrice[stock.symbol]).toFixed(2)}` : '-'}</span>
               </div>
               <div>
-                <span className="text-base-content/70">除息日:</span> 
+                <span className="text-base-content/70">除息日:</span>
                 <span className="font-medium ml-1">{stock.exDividendDate || '-'}</span>
               </div>
               <div>
-                <span className="text-base-content/70">每股配息:</span> 
+                <span className="text-base-content/70">每股配息:</span>
                 <span className="font-medium ml-1">{stock.cashDividendPerShare || '-'}</span>
               </div>
               <div>
-                <span className="text-base-content/70">每股配股:</span> 
+                <span className="text-base-content/70">每股配股:</span>
                 <span className="font-medium ml-1">{stock.stockDividendPerShare || '-'}</span>
               </div>
               <div>
-                <span className="text-base-content/70">現金殖利率:</span> 
+                <span className="text-base-content/70">現金殖利率:</span>
                 <span className="font-medium ml-1 text-success">{stock.cashYield ? `${stock.cashYield}%` : '-'}</span>
               </div>
               <div>
-                <span className="text-base-content/70">總殖利率:</span> 
+                <span className="text-base-content/70">總殖利率:</span>
                 <span className="font-medium ml-1 text-success">{stock.totalYield ? `${stock.totalYield}%` : '-'}</span>
               </div>
             </div>
