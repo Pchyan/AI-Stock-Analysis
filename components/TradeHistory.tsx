@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ResponsiveTradeCard from './ResponsiveTradeCard';
 
 interface Trade {
   id: number;
@@ -1149,7 +1150,8 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
                 </div>
               </div>
             </div>
-            <div className="table-responsive">
+            {/* 桌面版表格視圖 */}
+            <div className="hidden md:block table-responsive">
               <table className="trades-table">
               <thead>
                 <tr>
@@ -1222,6 +1224,18 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
               </tbody>
             </table>
           </div>
+
+          {/* 手機版卡片視圖 */}
+          <div className="md:hidden">
+            {filteredTrades.map((trade) => (
+              <ResponsiveTradeCard
+                key={trade.id}
+                trade={trade}
+                onEdit={startEditTrade}
+                onDelete={deleteTrade}
+              />
+            ))}
+          </div>
           </>
         ) : (
           <div className="empty-trades">
@@ -1277,8 +1291,20 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
 
         .form-row {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: 1fr;
           gap: var(--space-md);
+        }
+
+        @media (min-width: 576px) {
+          .form-row {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (min-width: 992px) {
+          .form-row {
+            grid-template-columns: repeat(4, 1fr);
+          }
         }
 
         .form-group {
@@ -1396,8 +1422,7 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
 
         .filter-sort-container {
           display: flex;
-          justify-content: space-between;
-          flex-wrap: wrap;
+          flex-direction: column;
           gap: var(--space-md);
           padding: var(--space-sm);
           background-color: var(--color-background);
@@ -1406,13 +1431,15 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
 
         .filter-container, .sort-container {
           display: flex;
+          flex-direction: column;
           gap: var(--space-md);
-          flex-wrap: wrap;
+          width: 100%;
         }
 
         .filter-group, .sort-group {
           display: flex;
           flex-direction: column;
+          width: 100%;
         }
 
         .filter-label, .sort-label {
@@ -1426,7 +1453,7 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
           border: 1px solid var(--color-border);
           border-radius: var(--radius-md);
           font-size: var(--font-size-sm);
-          min-width: 150px;
+          width: 100%;
         }
 
         .filter-control:focus, .sort-control:focus {
@@ -1434,13 +1461,26 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
           border-color: var(--color-primary);
         }
 
-        @media (max-width: 768px) {
+        @media (min-width: 576px) {
+          .filter-container, .sort-container {
+            flex-direction: row;
+            flex-wrap: wrap;
+          }
+
+          .filter-group, .sort-group {
+            width: auto;
+            min-width: 150px;
+          }
+        }
+
+        @media (min-width: 768px) {
           .filter-sort-container {
-            flex-direction: column;
+            flex-direction: row;
+            justify-content: space-between;
           }
 
           .filter-container, .sort-container {
-            width: 100%;
+            width: auto;
           }
         }
 

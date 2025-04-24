@@ -527,3 +527,55 @@ button {
 .pr-5 { padding-right: var(--space-xl) !important; }
 .pb-5 { padding-bottom: var(--space-xl) !important; }
 .pl-5 { padding-left: var(--space-xl) !important; }
+
+/* 響應式表格樣式 */
+@media (max-width: 768px) {
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-responsive table {
+    min-width: 100%;
+    width: auto;
+  }
+
+  /* 在小螢幕上減少表格內的間距 */
+  .table-responsive th,
+  .table-responsive td {
+    padding: var(--space-xs) var(--space-xxs);
+    font-size: var(--font-size-sm);
+  }
+
+  /* 在小螢幕上減少卡片的內邊距 */
+  .card {
+    padding: var(--space-md);
+  }
+
+  /* 在小螢幕上減少標題的大小 */
+  h1 { font-size: var(--font-size-3xl); }
+  h2 { font-size: var(--font-size-2xl); }
+  h3 { font-size: var(--font-size-xl); }
+  h4 { font-size: var(--font-size-lg); }
+  h5 { font-size: var(--font-size-md); }
+  h6 { font-size: var(--font-size-sm); }
+}
+
+/* 確保表單元素在小螢幕上的可用性 */
+@media (max-width: 576px) {
+  input, select, textarea {
+    font-size: 16px !important; /* 防止 iOS 上的縮放 */
+  }
+
+  .btn {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-sm);
+  }
+
+  /* 確保按鈕在小螢幕上有足夠的點擊區域 */
+  .btn-sm {
+    padding: var(--space-xs) var(--space-sm);
+    min-height: 36px;
+    min-width: 36px;
+  }
+}

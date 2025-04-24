@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import TradeHistory from './TradeHistory';
+import ResponsiveStockTable from './ResponsiveStockTable';
 
 interface Stock {
   symbol: string;
@@ -579,36 +580,42 @@ export default function PortfolioManager() {
 
       {activeTab === 'portfolio' ? (
         <div className="card">
-          <div className="card-header d-flex justify-content-between align-items-center">
-            <h3 className="card-title mb-0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                <path d="M12 20v-6M6 20V10M18 20V4"></path>
-              </svg>
-              持股管理
-              {loading && (
-                <span className="loading-indicator ml-2">
-                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                  <span className="sr-only">載入中...</span>
-                </span>
-              )}
-            </h3>
-            <div className="portfolio-summary">
-              <div className="summary-item">
-                總成本: <span className="font-bold">${calculateTotalCost()}</span>
-              </div>
-              <div className="summary-item">
-                損益: <span className={`font-bold ${parseFloat(calculateProfit()) >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-                  ${parseFloat(calculateProfit()) >= 0 ? '+' : ''}{calculateProfit()}
-                  <span
-                    className="total-profit-tooltip"
-                    title="損益+總配息+配股乘以市價的總額"
-                  >
-                    ({parseFloat(calculateTotalProfit()) >= 0 ? '+' : ''}{calculateTotalProfit()})
+          <div className="card-header">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center w-full">
+              <h3 className="card-title mb-4 md:mb-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 inline-block">
+                  <path d="M12 20v-6M6 20V10M18 20V4"></path>
+                </svg>
+                持股管理
+                {loading && (
+                  <span className="loading-indicator ml-2">
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span className="sr-only">載入中...</span>
                   </span>
-                </span>
-              </div>
-              <div className="summary-item">
-                目前總市值: <span className="font-bold">${calculateTotalValue()}</span>
+                )}
+              </h3>
+
+              <div className="portfolio-summary bg-base-200 p-3 rounded-lg w-full md:w-auto">
+                <div className="summary-item mb-2 md:mb-0">
+                  <span className="text-base-content/70 mr-1">總成本:</span>
+                  <span className="font-bold">${calculateTotalCost()}</span>
+                </div>
+                <div className="summary-item mb-2 md:mb-0">
+                  <span className="text-base-content/70 mr-1">損益:</span>
+                  <span className={`font-bold ${parseFloat(calculateProfit()) >= 0 ? 'profit-positive' : 'profit-negative'}`}>
+                    ${parseFloat(calculateProfit()) >= 0 ? '+' : ''}{calculateProfit()}
+                    <span
+                      className="total-profit-tooltip"
+                      title="損益+總配息+配股乘以市價的總額"
+                    >
+                      ({parseFloat(calculateTotalProfit()) >= 0 ? '+' : ''}{calculateTotalProfit()})
+                    </span>
+                  </span>
+                </div>
+                <div className="summary-item">
+                  <span className="text-base-content/70 mr-1">目前總市值:</span>
+                  <span className="font-bold">${calculateTotalValue()}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -682,152 +689,19 @@ export default function PortfolioManager() {
         </div>
 
         {portfolio.length > 0 ? (
-          <div className="table-responsive">
-            <table className="portfolio-table">
-              <thead>
-                <tr>
-                  <th className={getClassNamesFor('symbol')} onClick={() => requestSort('symbol')}>
-                    股票代碼
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('name')} onClick={() => requestSort('name')}>
-                    股票名稱
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('shares')} onClick={() => requestSort('shares')}>
-                    股數
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('cost')} onClick={() => requestSort('cost')}>
-                    成本
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('totalValue')} onClick={() => requestSort('totalValue')}>
-                    成本總值
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('currentPrice')} onClick={() => requestSort('currentPrice')}>
-                    目前股價
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('currentTotalValue')} onClick={() => requestSort('currentTotalValue')}>
-                    目前總市值
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('exDividendDate')} onClick={() => requestSort('exDividendDate')}>
-                    除息日
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('cashDividendPerShare')} onClick={() => requestSort('cashDividendPerShare')}>
-                    每股配息
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('stockDividendPerShare')} onClick={() => requestSort('stockDividendPerShare')}>
-                    每股配股
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('cashYield')} onClick={() => requestSort('cashYield')}>
-                    現金殖利率(%)
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th className={getClassNamesFor('totalYield')} onClick={() => requestSort('totalYield')}>
-                    總殖利率(%)
-                    <span className="sort-indicator"></span>
-                  </th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getSortedPortfolio().map((stock) => (
-                  <tr key={stock.id}>
-                    <td className="stock-symbol">{stock.symbol}</td>
-                    <td>{stock.name || '-'}</td>
-                    <td>
-                      {editingId === stock.id ? (
-                        <input
-                          type="number"
-                          className="edit-input"
-                          value={editStock.shares}
-                          onChange={e => setEditStock({...editStock, shares: e.target.value})}
-                          min={1}
-                        />
-                      ) : stock.shares}
-                    </td>
-                    <td>
-                      {editingId === stock.id ? (
-                        <input
-                          type="number"
-                          className="edit-input"
-                          value={editStock.cost}
-                          onChange={e => setEditStock({...editStock, cost: e.target.value})}
-                          min={0}
-                          step={0.01}
-                        />
-                      ) : stock.cost}
-                    </td>
-                    <td className="stock-value">${stock.totalValue ? stock.totalValue.toFixed(2) : (stock.shares * stock.cost).toFixed(2)}</td>
-                    <td className="stock-price">{currentPrice[stock.symbol] ? `$${currentPrice[stock.symbol].toFixed(2)}` : '-'}</td>
-                    <td className="stock-value">
-                      {currentPrice[stock.symbol] ? `$${(stock.shares * currentPrice[stock.symbol]).toFixed(2)}` : '-'}
-                    </td>
-                    <td>{stock.exDividendDate || '-'}</td>
-                    <td>{stock.cashDividendPerShare || '-'}</td>
-                    <td>{stock.stockDividendPerShare || '-'}</td>
-                    <td className="yield-value">{stock.cashYield ? `${stock.cashYield}%` : '-'}</td>
-                    <td className="yield-value">{stock.totalYield ? `${stock.totalYield}%` : '-'}</td>
-                    <td>
-                      {editingId === stock.id ? (
-                        <div className="action-buttons">
-                          <button
-                            className="btn btn-sm btn-success mr-1"
-                            onClick={() => stock.id && saveEdit(stock.id)}
-                            title="儲存"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                          </button>
-                          <button
-                            className="btn btn-sm btn-outline"
-                            onClick={cancelEdit}
-                            title="取消"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="18" y1="6" x2="6" y2="18"></line>
-                              <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="action-buttons">
-                          <button
-                            className="btn btn-sm btn-outline mr-1"
-                            onClick={() => startEditing(stock)}
-                            title="編輯"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                          </button>
-                          <button
-                            className="btn btn-sm btn-error"
-                            onClick={() => stock.id && removeStock(stock.id)}
-                            title="刪除"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveStockTable
+            stocks={getSortedPortfolio()}
+            currentPrice={currentPrice}
+            editingId={editingId}
+            editStock={editStock}
+            setEditStock={setEditStock}
+            startEditing={startEditing}
+            saveEdit={saveEdit}
+            cancelEdit={cancelEdit}
+            removeStock={removeStock}
+            getClassNamesFor={getClassNamesFor}
+            requestSort={requestSort}
+          />
         ) : (
           <div className="empty-portfolio">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
@@ -882,9 +756,17 @@ export default function PortfolioManager() {
 
         .portfolio-summary {
           display: flex;
-          gap: var(--space-md);
-          font-size: var(--font-size-md);
+          flex-wrap: wrap;
+          gap: var(--space-sm);
+          font-size: var(--font-size-sm);
           color: var(--color-text-secondary);
+        }
+
+        @media (min-width: 768px) {
+          .portfolio-summary {
+            gap: var(--space-md);
+            font-size: var(--font-size-md);
+          }
         }
 
         .summary-item {
@@ -914,8 +796,20 @@ export default function PortfolioManager() {
 
         .form-row {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: 1fr;
           gap: var(--space-md);
+        }
+
+        @media (min-width: 576px) {
+          .form-row {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (min-width: 992px) {
+          .form-row {
+            grid-template-columns: repeat(4, 1fr);
+          }
         }
 
         .form-group {

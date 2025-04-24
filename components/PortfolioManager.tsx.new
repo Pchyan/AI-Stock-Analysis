@@ -1,0 +1,21 @@
+import React, { useState, useEffect, useRef } from 'react';
+import TradeHistory from './TradeHistory';
+import ResponsiveStockTable from './ResponsiveStockTable';
+
+interface Stock {
+  symbol: string;
+  name: string;
+  shares: number;
+  cost: number;
+  id?: number;
+  exDividendDate?: string; // 除息日
+  lastExDividendDate?: string; // 上次除息日
+  exRightDate?: string; // 除權日
+  lastExRightDate?: string; // 上次除權日
+  cashDividendPerShare?: number; // 每股配息
+  stockDividendPerShare?: number; // 每股配股
+  cashYield?: number; // 現金殖利率(%)
+  totalYield?: number; // 現金+配股殖利率(%)
+  costYield?: number; // 持有成本的現金+股票殖利率(%)
+  totalValue?: number; // 持有的總值
+}
