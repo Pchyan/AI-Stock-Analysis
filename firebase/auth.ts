@@ -32,7 +32,9 @@ export const registerUser = async (email: string, password: string, displayName:
 // 用戶登入
 export const signIn = async (email: string, password: string) => {
   try {
+    console.log(`嘗試使用郵箱 ${email} 登入...`);
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    console.log('登入成功:', userCredential.user.uid);
     return userCredential.user;
   } catch (error) {
     console.error('登入失敗:', error);
@@ -65,11 +67,18 @@ export const resetPassword = async (email: string) => {
 // 獲取當前用戶
 export const getCurrentUser = (): User | null => {
   if (!isBrowser) return null;
-  return auth.currentUser;
+  const user = auth.currentUser;
+  console.log('獲取當前用戶:', user ? user.uid : '未登入');
+  return user;
 };
 
 // 監聽用戶狀態變化
 export const onAuthStateChange = (callback: (user: User | null) => void) => {
   if (!isBrowser) return () => {};
-  return onAuthStateChanged(auth, callback);
+
+  console.log('開始監聽用戶狀態變化...');
+  return onAuthStateChanged(auth, (user) => {
+    console.log('用戶狀態變化:', user ? `已登入 (${user.uid})` : '未登入');
+    callback(user);
+  });
 };

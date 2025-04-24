@@ -181,13 +181,17 @@ export const importDatabase = async (data: Record<string, any>): Promise<void> =
   if (!isBrowser) return;
 
   try {
+    console.log('開始匯入資料庫...');
     const uid = getUserId();
     if (!uid) {
+      console.error('匯入資料庫失敗: 用戶未登入');
       throw new Error('用戶未登入');
     }
 
+    console.log(`匯入資料庫到用戶 ${uid}...`);
     const dbRef = ref(database, `users/${uid}`);
     await set(dbRef, data);
+    console.log('資料庫匯入成功');
   } catch (error) {
     console.error('匯入資料庫失敗:', error);
     throw error;
@@ -199,12 +203,15 @@ export const getDatabaseByUid = async (uid: string): Promise<Record<string, any>
   if (!isBrowser) return null;
 
   try {
+    console.log(`開始獲取 UID ${uid} 的資料庫...`);
     const dbRef = ref(database, `users/${uid}`);
     const snapshot = await get(dbRef);
 
     if (snapshot.exists()) {
+      console.log(`成功獲取 UID ${uid} 的資料庫`);
       return snapshot.val();
     }
+    console.log(`UID ${uid} 的資料庫不存在`);
     return null;
   } catch (error) {
     console.error(`獲取 UID ${uid} 的資料庫失敗:`, error);

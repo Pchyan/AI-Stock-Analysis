@@ -24,15 +24,31 @@ let database: Database;
 
 // 只在瀏覽器環境中初始化 Firebase
 if (isBrowser) {
+  console.log('初始化 Firebase...');
+  console.log('Firebase 配置:', {
+    apiKey: firebaseConfig.apiKey ? '已設置' : '未設置',
+    authDomain: firebaseConfig.authDomain ? '已設置' : '未設置',
+    databaseURL: firebaseConfig.databaseURL ? '已設置' : '未設置',
+    projectId: firebaseConfig.projectId ? '已設置' : '未設置',
+    storageBucket: firebaseConfig.storageBucket ? '已設置' : '未設置',
+    messagingSenderId: firebaseConfig.messagingSenderId ? '已設置' : '未設置',
+    appId: firebaseConfig.appId ? '已設置' : '未設置'
+  });
+
   const apps = getApps();
   if (apps.length === 0) {
+    console.log('沒有現有的 Firebase 應用，創建新的應用...');
     app = initializeApp(firebaseConfig);
   } else {
+    console.log('使用現有的 Firebase 應用...');
     app = apps[0];
   }
 
+  console.log('初始化 Firebase 身份驗證...');
   auth = getAuth(app);
+  console.log('初始化 Firebase 資料庫...');
   database = getDatabase(app);
+  console.log('Firebase 初始化完成');
 }
 
 export { auth, database };

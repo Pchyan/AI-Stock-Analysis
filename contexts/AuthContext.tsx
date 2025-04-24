@@ -51,13 +51,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // 當用戶登入狀態變化時，同步存儲
   useEffect(() => {
-    if (!isBrowser || !loading) {
+    if (!isBrowser) {
       return;
     }
 
-    if (user) {
+    // 只有在加載完成後才執行同步
+    if (!loading && user) {
+      console.log('用戶登入後，開始同步 localStorage 和 Firebase');
       // 用戶登入後，同步 localStorage 和 Firebase
-      storageBridge.sync().catch(err => {
+      storageBridge.sync().then(() => {
+        console.log('同步 localStorage 和 Firebase 成功');
+      }).catch(err => {
         console.error('同步存儲失敗:', err);
       });
     }

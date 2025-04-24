@@ -149,23 +149,32 @@ class StorageBridge {
 
   // 同步 localStorage 和 Firebase
   async sync(): Promise<void> {
+    console.log('開始同步 localStorage 和 Firebase');
+
     if (!this.checkFirebaseStatus()) {
+      console.log('Firebase 未啟用，無法同步');
       return;
     }
 
     try {
+      console.log('正在從 Firebase 獲取數據...');
       // 獲取 Firebase 中的所有數據
       const firebaseData = await getData<Record<string, string>>('storage');
 
       if (firebaseData) {
+        console.log('從 Firebase 獲取到數據，正在同步到 localStorage...');
         // 將 Firebase 數據同步到 localStorage
         Object.entries(firebaseData).forEach(([key, value]) => {
           if (value !== null) {
+            console.log(`同步 Firebase -> localStorage: ${key}`);
             this.fallbackStorage.setItem(key, value);
           }
         });
+      } else {
+        console.log('Firebase 中沒有數據');
       }
 
+      console.log('正在從 localStorage 獲取數據...');
       // 將 localStorage 數據同步到 Firebase
       const storageData: Record<string, string> = {};
       for (let i = 0; i < this.fallbackStorage.length; i++) {
@@ -173,12 +182,15 @@ class StorageBridge {
         if (key) {
           const value = this.fallbackStorage.getItem(key);
           if (value !== null) {
+            console.log(`同步 localStorage -> Firebase: ${key}`);
             storageData[key] = value;
           }
         }
       }
 
+      console.log('正在將數據保存到 Firebase...');
       await saveData('storage', storageData);
+      console.log('同步完成');
     } catch (error) {
       console.error('同步存儲失敗:', error);
     }

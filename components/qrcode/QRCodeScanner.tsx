@@ -180,27 +180,38 @@ export default function QRCodeScanner() {
         return;
       }
 
+      console.log('開始從 QR 碼載入資料庫...');
       // 從 QR 碼載入資料庫
       const data = await loadDatabaseFromQRCode(scannedData);
+      console.log('從 QR 碼載入的資料:', data);
 
       if (!data) {
         throw new Error('無法從 QR 碼載入資料');
       }
 
+      console.log('開始匯入資料庫到 Firebase...');
       // 匯入資料庫
       await importDatabase(data);
+      console.log('資料庫匯入到 Firebase 成功');
 
       // 同步到 localStorage
       if (data.storage) {
+        console.log('開始同步資料到 localStorage...');
         Object.entries(data.storage).forEach(([key, value]) => {
           if (value !== null && typeof value === 'string') {
+            console.log(`同步到 localStorage: ${key}`);
             localStorage.setItem(key, value);
           }
         });
+        console.log('同步到 localStorage 完成');
+      } else {
+        console.log('沒有 storage 數據需要同步到 localStorage');
       }
 
+      console.log('開始同步 localStorage 和 Firebase...');
       // 同步 localStorage 和 Firebase
       await storageBridge.sync();
+      console.log('同步 localStorage 和 Firebase 完成');
 
       setSuccess('資料庫匯入成功！請重新整理頁面以套用新資料。');
 

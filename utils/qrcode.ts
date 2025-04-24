@@ -82,13 +82,19 @@ export const loadDatabaseFromQRCode = async (qrData: string): Promise<Record<str
   if (!isBrowser) return null;
 
   try {
+    console.log('開始解析 QR 碼數據:', qrData);
     const parsedData = parseQRCode(qrData);
+    console.log('解析結果:', parsedData);
+
     if (!parsedData) {
+      console.error('無效的 QR 碼數據');
       throw new Error('無效的 QR 碼數據');
     }
 
     const { uid } = parsedData;
+    console.log(`使用 UID ${uid} 載入資料庫...`);
     const data = await getDatabaseByUid(uid);
+    console.log('載入的資料庫數據:', data);
     return data;
   } catch (error) {
     console.error('從 QR 碼載入資料庫失敗:', error);
