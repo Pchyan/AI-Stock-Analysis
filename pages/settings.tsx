@@ -1,5 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
-import Link from 'next/link';
+import { useAuth } from '../contexts/AuthContext';
+import { exportDatabase as exportFirebaseDb, importDatabase as importFirebaseDb } from '../firebase/database';
+import storageBridge from '../utils/storage-bridge';
+import QRCodeGenerator from '../components/qrcode/QRCodeGenerator';
+import QRCodeScanner from '../components/qrcode/QRCodeScanner';
+import AuthModal from '../components/auth/AuthModal';
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState('');
@@ -12,6 +17,13 @@ export default function Settings() {
   const [dbError, setDbError] = useState('');
   const [dbSuccess, setDbSuccess] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 身份驗證相關狀態
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { user, loading: authLoading, signOut } = useAuth();
+
+  // QR 碼相關狀態
+  const [qrCodeTab, setQrCodeTab] = useState<'generate' | 'scan'>('generate');
 
   // 簡單的加密函數
   const encryptApiKey = (key: string): string => {
@@ -32,18 +44,44 @@ export default function Settings() {
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem('gemini_api_key');
-    if (stored) {
-      try {
-        const decrypted = decryptApiKey(stored);
-        setApiKey(decrypted);
-      } catch (e) {
-        console.error('解密 API KEY 失敗', e);
-        // 如果解密失敗，可能是舊版本未加密的 key，直接使用
-        setApiKey(stored);
+    const loadApiKey = async () => {
+      // 優先從 Firebase 獲取
+      if (user) {
+        try {
+          const key = await storageBridge.getItem('gemini_api_key');
+          if (key) {
+            try {
+              const decrypted = decryptApiKey(key);
+              setApiKey(decrypted);
+              return;
+            } catch (e) {
+              console.error('解密 API KEY 失敗', e);
+              // 如果解密失敗，可能是舊版本未加密的 key，直接使用
+              setApiKey(key);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('從 Firebase 獲取 API KEY 失敗', e);
+        }
       }
-    }
-  }, []);
+
+      // 從 localStorage 獲取
+      const stored = localStorage.getItem('gemini_api_key');
+      if (stored) {
+        try {
+          const decrypted = decryptApiKey(stored);
+          setApiKey(decrypted);
+        } catch (e) {
+          console.error('解密 API KEY 失敗', e);
+          // 如果解密失敗，可能是舊版本未加密的 key，直接使用
+          setApiKey(stored);
+        }
+      }
+    };
+
+    loadApiKey();
+  }, [user]);
 
   const validateAndSave = async () => {
     setStatus('saving');
@@ -57,7 +95,19 @@ export default function Settings() {
     if (result.valid) {
       // 加密後存儲
       const encryptedKey = encryptApiKey(apiKey.trim());
+
+      // 儲存到 localStorage
       localStorage.setItem('gemini_api_key', encryptedKey);
+
+      // 如果用戶已登入，也儲存到 Firebase
+      if (user) {
+        try {
+          await storageBridge.setItem('gemini_api_key', encryptedKey);
+        } catch (e) {
+          console.error('儲存 API KEY 到 Firebase 失敗', e);
+        }
+      }
+
       setStatus('success');
       setTimeout(() => setStatus('idle'), 2000);
     } else {
@@ -67,18 +117,32 @@ export default function Settings() {
   };
 
   // 匯出資料庫
-  const exportDatabase = () => {
+  const exportDatabase = async () => {
     try {
       setDbStatus('exporting');
       setDbError('');
       setDbSuccess('');
 
-      // 收集所有 localStorage 數據
-      const data = {};
+      // 如果用戶已登入，從 Firebase 匯出
+      let data: Record<string, any> = {};
+      if (user) {
+        try {
+          data = await exportFirebaseDb();
+        } catch (e) {
+          console.error('從 Firebase 匯出資料庫失敗', e);
+          // 如果從 Firebase 匯出失敗，回退到從 localStorage 匯出
+          data = {};
+        }
+      }
+
+      // 合併 localStorage 數據
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key) {
-          data[key] = localStorage.getItem(key);
+          if (!data.storage) {
+            data.storage = {};
+          }
+          data.storage[key] = localStorage.getItem(key);
         }
       }
 
@@ -124,7 +188,7 @@ export default function Settings() {
   };
 
   // 匯入資料庫
-  const importDatabase = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const importDatabase = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -134,7 +198,7 @@ export default function Settings() {
 
     const reader = new FileReader();
 
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const content = e.target?.result as string;
         const data = JSON.parse(content);
@@ -148,12 +212,43 @@ export default function Settings() {
           return;
         }
 
-        // 將數據寫入 localStorage
-        Object.keys(data).forEach(key => {
-          if (data[key] !== null) {
-            localStorage.setItem(key, data[key]);
+        // 如果用戶已登入，匯入到 Firebase
+        if (user) {
+          try {
+            await importFirebaseDb(data);
+          } catch (e) {
+            console.error('匯入資料庫到 Firebase 失敗', e);
+            setDbStatus('fail');
+            setDbError(`匯入資料庫到 Firebase 失敗: ${e.message}`);
+
+            // 重置檔案輸入
+            if (fileInputRef.current) {
+              fileInputRef.current.value = '';
+            }
+            return;
           }
-        });
+        }
+
+        // 將數據寫入 localStorage
+        if (data.storage) {
+          Object.keys(data.storage).forEach(key => {
+            if (data.storage[key] !== null) {
+              localStorage.setItem(key, data.storage[key]);
+            }
+          });
+        } else {
+          // 兼容舊版本的備份格式
+          Object.keys(data).forEach(key => {
+            if (data[key] !== null) {
+              localStorage.setItem(key, data[key]);
+            }
+          });
+        }
+
+        // 同步 localStorage 和 Firebase
+        if (user) {
+          await storageBridge.sync();
+        }
 
         setDbStatus('success');
         setDbSuccess('資料庫匯入成功！請重新整理頁面以套用新資料。');
@@ -197,6 +292,98 @@ export default function Settings() {
       {/* 移除返回首頁連結，確保與其他頁面一致 */}
 
       <div className="settings-cards">
+        {/* 用戶身份驗證卡片 */}
+        <div className="card mb-4">
+          <div className="card-header">
+            <h2 className="card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              用戶帳號
+            </h2>
+          </div>
+
+          <div className="card-body">
+            <div className="mb-4">
+              <p>
+                登入您的帳號以在雲端同步您的資料，並在多個裝置上使用。
+              </p>
+              <div className="bg-info p-3 rounded-md mb-3">
+                <h4 className="font-semibold mb-2">雲端同步功能</h4>
+                <ul className="ml-4 list-disc">
+                  <li className="mb-1">自動備份您的資料到雲端</li>
+                  <li className="mb-1">在多個裝置上同步您的持股和交易記錄</li>
+                  <li>使用 QR 碼快速在新裝置上載入您的資料</li>
+                </ul>
+              </div>
+            </div>
+
+            {authLoading ? (
+              <div className="flex justify-center items-center py-4">
+                <span className="spinner-border mr-2" role="status" aria-hidden="true"></span>
+                <span>載入中...</span>
+              </div>
+            ) : user ? (
+              <div className="user-info">
+                <div className="flex items-center mb-4">
+                  <div className="avatar placeholder mr-3">
+                    <div className="bg-neutral-focus text-neutral-content rounded-full w-12">
+                      <span>{user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase()}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold">{user.displayName || '用戶'}</div>
+                    <div className="text-sm opacity-70">{user.email}</div>
+                  </div>
+                </div>
+
+                <button
+                  className="btn btn-outline btn-error"
+                  onClick={async () => {
+                    try {
+                      await signOut();
+                    } catch (e) {
+                      console.error('登出失敗', e);
+                    }
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                  登出
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setShowAuthModal(true)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                    <polyline points="10 17 15 12 10 7"></polyline>
+                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                  </svg>
+                  登入
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="card-footer text-secondary">
+            <div className="d-flex align-items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              您的資料將使用 Firebase 安全加密存儲。
+            </div>
+          </div>
+        </div>
+
         {/* API KEY 設定卡片 */}
         <div className="card mb-4">
           <div className="card-header">
@@ -308,6 +495,70 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* QR 碼功能卡片 */}
+        {user && (
+          <div className="card mb-4">
+            <div className="card-header">
+              <h2 className="card-title">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <rect x="7" y="7" width="3" height="3"></rect>
+                  <rect x="14" y="7" width="3" height="3"></rect>
+                  <rect x="7" y="14" width="3" height="3"></rect>
+                  <rect x="14" y="14" width="3" height="3"></rect>
+                </svg>
+                QR 碼管理
+              </h2>
+            </div>
+
+            <div className="card-body">
+              <div className="mb-4">
+                <p>
+                  使用 QR 碼快速在不同裝置間同步您的資料庫。
+                </p>
+                <div className="bg-info p-3 rounded-md mb-3">
+                  <h4 className="font-semibold mb-2">使用方式</h4>
+                  <ul className="ml-4 list-disc">
+                    <li className="mb-1">生成 QR 碼並保存或截圖</li>
+                    <li className="mb-1">在其他裝置上掃描此 QR 碼</li>
+                    <li>您的資料將自動同步到新裝置</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="tabs tabs-boxed mb-4">
+                <a
+                  className={`tab ${qrCodeTab === 'generate' ? 'tab-active' : ''}`}
+                  onClick={() => setQrCodeTab('generate')}
+                >
+                  生成 QR 碼
+                </a>
+                <a
+                  className={`tab ${qrCodeTab === 'scan' ? 'tab-active' : ''}`}
+                  onClick={() => setQrCodeTab('scan')}
+                >
+                  掃描 QR 碼
+                </a>
+              </div>
+
+              {qrCodeTab === 'generate' ? (
+                <QRCodeGenerator />
+              ) : (
+                <QRCodeScanner />
+              )}
+            </div>
+
+            <div className="card-footer text-secondary">
+              <div className="d-flex align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                QR 碼包含您的用戶 ID，可用於在其他裝置上載入您的資料。
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 資料庫匯出/匯入卡片 */}
         <div className="card">
           <div className="card-header">
@@ -418,6 +669,12 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* 身份驗證模態框 */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
 
       <style jsx>{`
         .settings-cards {

@@ -7,6 +7,7 @@ import ThemeProvider from '../components/ThemeProvider';
 import ThemeToggle from '../components/ThemeToggle';
 import Container from '../components/Container';
 import PageLoader from '../components/PageLoader';
+import { AuthProvider } from '../contexts/AuthContext';
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -29,28 +30,30 @@ export default function MyApp({ Component, pageProps }: AppProps) {
   }, [router]);
 
   return (
-    <ThemeProvider>
-      <div className="min-h-screen flex flex-col bg-base-100 text-base-content transition-colors duration-200">
-        <NavBar />
+    <AuthProvider>
+      <ThemeProvider>
+        <div className="min-h-screen flex flex-col bg-base-100 text-base-content transition-colors duration-200">
+          <NavBar />
 
-        <PageLoader loading={loading}>
-          <main className="flex-grow py-6">
-            <Container>
-              <Component {...pageProps} />
-            </Container>
-          </main>
-        </PageLoader>
+          <PageLoader loading={loading}>
+            <main className="flex-grow py-6">
+              <Container>
+                <Component {...pageProps} />
+              </Container>
+            </main>
+          </PageLoader>
 
-        <footer className="footer footer-center p-4 bg-base-200 text-base-content">
-          <div>
-            <p>© {new Date().getFullYear()} AI Stock Analysis - 提供智能股票分析與投資組合管理</p>
+          <footer className="footer footer-center p-4 bg-base-200 text-base-content">
+            <div>
+              <p>© {new Date().getFullYear()} AI Stock Analysis - 提供智能股票分析與投資組合管理</p>
+            </div>
+          </footer>
+
+          <div className="fixed bottom-6 left-6 z-50">
+            <ThemeToggle />
           </div>
-        </footer>
-
-        <div className="fixed bottom-6 left-6 z-50">
-          <ThemeToggle />
         </div>
-      </div>
-    </ThemeProvider>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

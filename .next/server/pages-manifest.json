@@ -3,8 +3,8 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/": "pages/index.js",
-  "/api/stock": "pages/api/stock.js",
-  "/portfolio": "pages/portfolio.js",
   "/api/journal": "pages/api/journal.js",
-  "/settings": "pages/settings.js"
+  "/settings": "pages/settings.js",
+  "/api/stock": "pages/api/stock.js",
+  "/portfolio": "pages/portfolio.js"
 }

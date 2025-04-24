@@ -9,6 +9,8 @@
 - 股票分析
 - 股息追蹤
 - 即時股價更新
+- Firebase 雲端同步
+- QRCode 資料庫分享
 
 ## 本地開發
 
@@ -25,7 +27,17 @@ npm install
 創建 `.env.local` 檔案並設定環境變數：
 
 ```
+# Alpha Vantage API Key
 ALPHA_VANTAGE_KEY=您的API金鑰
+
+# Firebase 配置
+NEXT_PUBLIC_FIREBASE_API_KEY=您的Firebase API Key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=您的Firebase Auth Domain
+NEXT_PUBLIC_FIREBASE_DATABASE_URL=您的Firebase Database URL
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=您的Firebase Project ID
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=您的Firebase Storage Bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=您的Firebase Messaging Sender ID
+NEXT_PUBLIC_FIREBASE_APP_ID=您的Firebase App ID
 ```
 
 3. **啟動開發伺服器**
@@ -43,6 +55,10 @@ npm run dev
 - 取得方式：
   - 前往 [Google AI Studio - API Keys](https://aistudio.google.com/app/apikey)
   - 建立 API KEY 並複製貼上
+- 若要使用 Firebase 雲端同步功能：
+  - 在「設定」頁面點擊「登入」按鈕
+  - 註冊或登入您的帳號
+  - 登入後即可使用 QRCode 功能和雲端同步
 
 ## 部署到 Vercel
 
@@ -53,6 +69,7 @@ npm run dev
 3. 導入您的儲存庫
 4. 在部署設定中，添加環境變數：
    - `ALPHA_VANTAGE_KEY`: 您的 Alpha Vantage API 金鑰
+   - 所有 Firebase 相關的環境變數（如上述 `.env.local` 中所列）
 5. 點擊部署
 
 ### 手動部署
@@ -80,6 +97,13 @@ vercel
 ## 環境變數
 
 - `ALPHA_VANTAGE_KEY`: Alpha Vantage API 金鑰，用於獲取股票數據
+- `NEXT_PUBLIC_FIREBASE_API_KEY`: Firebase API Key
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`: Firebase Auth Domain
+- `NEXT_PUBLIC_FIREBASE_DATABASE_URL`: Firebase Realtime Database URL
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`: Firebase Project ID
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`: Firebase Storage Bucket
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`: Firebase Messaging Sender ID
+- `NEXT_PUBLIC_FIREBASE_APP_ID`: Firebase App ID
 
 ---
 
