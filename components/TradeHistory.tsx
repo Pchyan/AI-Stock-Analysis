@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ResponsiveTradeCard from './ResponsiveTradeCard';
+import storageBridge from '../utils/storage-bridge';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Trade {
   id: number;
@@ -23,6 +25,7 @@ interface Stock {
 }
 
 export default function TradeHistory({ portfolio, setPortfolio }) {
+  const { user } = useAuth();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [symbol, setSymbol] = useState('');
   const [type, setType] = useState<'buy' | 'sell' | 'dividend' | 'stockDividend' | 'capitalIncrease' | 'capitalDecrease'>('buy');
@@ -92,8 +95,21 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
 
   // 儲存交易記錄
   useEffect(() => {
+    // 儲存到 localStorage
     localStorage.setItem('trades', JSON.stringify(trades));
-  }, [trades]);
+
+    // 如果用戶已登入，同步到 Firebase
+    if (user) {
+      console.log('交易記錄變更，開始同步到 Firebase...');
+      storageBridge.setItem('trades', JSON.stringify(trades))
+        .then(() => {
+          console.log('交易記錄同步到 Firebase 成功');
+        })
+        .catch(err => {
+          console.error('交易記錄同步到 Firebase 失敗:', err);
+        });
+    }
+  }, [trades, user]);
 
   // 處理排序和篩選
   useEffect(() => {
@@ -270,6 +286,15 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
 
     // 更新持股
     updatePortfolio(newTrade);
+
+    // 設置高亮顯示
+    setNewTradeIds([newTrade.id]);
+    setTimeout(() => {
+      setNewTradeIds([]);
+    }, 3000);
+
+    // 設置成功訊息
+    setSuccess('交易記錄已成功新增');
 
     // 重置表單
     resetForm();

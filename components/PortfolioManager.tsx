@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import TradeHistory from './TradeHistory';
 import ResponsiveStockTable from './ResponsiveStockTable';
+import storageBridge from '../utils/storage-bridge';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Stock {
   symbol: string;
@@ -21,6 +23,7 @@ interface Stock {
 }
 
 export default function PortfolioManager() {
+  const { user } = useAuth();
   const [portfolio, setPortfolio] = useState<Stock[]>([]);
   const [symbol, setSymbol] = useState('');
   const [shares, setShares] = useState<number|string>('');
@@ -52,18 +55,42 @@ export default function PortfolioManager() {
     }
   }, []);
 
-  // 儲存投資組合到 localStorage
+  // 儲存投資組合到 localStorage 和 Firebase
   useEffect(() => {
+    // 儲存到 localStorage
     localStorage.setItem('portfolio', JSON.stringify(portfolio));
 
     // 將股票名稱資訊存入 localStorage
     if (portfolio.length > 0) {
-      localStorage.setItem('stockInfo', JSON.stringify(portfolio.map(stock => ({
+      const stockInfo = JSON.stringify(portfolio.map(stock => ({
         symbol: stock.symbol,
         name: stock.name || ''
-      }))));
+      })));
+      localStorage.setItem('stockInfo', stockInfo);
+
+      // 如果用戶已登入，同步到 Firebase
+      if (user) {
+        console.log('持股資料變更，開始同步到 Firebase...');
+        // 同步投資組合
+        storageBridge.setItem('portfolio', JSON.stringify(portfolio))
+          .then(() => {
+            console.log('投資組合同步到 Firebase 成功');
+          })
+          .catch(err => {
+            console.error('投資組合同步到 Firebase 失敗:', err);
+          });
+
+        // 同步股票資訊
+        storageBridge.setItem('stockInfo', stockInfo)
+          .then(() => {
+            console.log('股票資訊同步到 Firebase 成功');
+          })
+          .catch(err => {
+            console.error('股票資訊同步到 Firebase 失敗:', err);
+          });
+      }
     }
-  }, [portfolio]);
+  }, [portfolio, user]);
 
   // 當投資組合更新時，獲取股票資訊，但使用 portfolioRef 避免無限循環
   const portfolioRef = React.useRef(portfolio);
@@ -321,6 +348,18 @@ export default function PortfolioManager() {
         const updatedTrades = parsedTrades.filter(trade => trade.symbol !== stockToRemove.symbol);
         // 更新 localStorage
         localStorage.setItem('trades', JSON.stringify(updatedTrades));
+
+        // 如果用戶已登入，同步到 Firebase
+        if (user) {
+          console.log('刪除股票後，開始同步交易記錄到 Firebase...');
+          storageBridge.setItem('trades', JSON.stringify(updatedTrades))
+            .then(() => {
+              console.log('交易記錄同步到 Firebase 成功');
+            })
+            .catch(err => {
+              console.error('交易記錄同步到 Firebase 失敗:', err);
+            });
+        }
 
         // 如果當前在交易記錄頁面，通知 TradeHistory 組件更新
         if (activeTab === 'trades' && window.updateTradesAfterStockRemoval) {
