@@ -279,13 +279,18 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
       notes: notes.trim() || ''
     };
 
+    console.log('新增交易:', newTrade);
+    console.log('當前持股狀態:', portfolio);
+
     // 更新交易記錄
     const updatedTrades = [newTrade, ...trades];
     setTrades(updatedTrades);
     // 不需要手動更新 filteredTrades，因為 useEffect 會自動處理
 
     // 更新持股
+    console.log('開始更新持股...');
     updatePortfolio(newTrade);
+    console.log('持股更新完成');
 
     // 設置高亮顯示
     setNewTradeIds([newTrade.id]);
@@ -364,10 +369,9 @@ export default function TradeHistory({ portfolio, setPortfolio }) {
       // 不需要做任何變更
     }
 
-    // 如果沒有提供自定義的 portfolio，則更新狀態
-    if (portfolioToUpdate === portfolio) {
-      setPortfolio([...portfolioToUpdate]);
-    }
+    // 始終更新持股狀態，不管是否使用自定義的 portfolio
+    console.log('更新持股狀態:', portfolioToUpdate);
+    setPortfolio([...portfolioToUpdate]);
 
     return portfolioToUpdate;
   };
